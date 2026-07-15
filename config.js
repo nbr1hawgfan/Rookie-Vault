@@ -11,13 +11,13 @@
 
 window.ROOKIE_VAULT_CONFIG = {
   // Project Settings → API in your Supabase dashboard
-  supabaseUrl: 'https://YOUR-PROJECT-REF.supabase.co',
-  supabaseAnonKey: 'YOUR-ANON-PUBLIC-KEY',
+  supabaseUrl: 'https://rwshesdgjmwxynhzisnm.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3c2hlc2Rnam13eHluaHppc25tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNzczMDcsImV4cCI6MjA5OTY1MzMwN30.VfGWWGOPMPjRn6IofbXOu9KfZfA2FatutBQ_GRwn4Lc',
 
   // The one shared login the app signs in with after a correct PIN.
   // Create this user in Supabase: Authentication → Users → Add user.
-  sharedEmail: 'family@example.com',
-  sharedPassword: 'choose-a-password',
+  sharedEmail: 'shamrockspersonal@gmail.com',
+  sharedPassword: 'Shamrocks2002#',
 
   // Whatever PIN you and your son want to type in to open the app.
   appPin: '1234'
