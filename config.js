@@ -20,5 +20,5 @@ window.ROOKIE_VAULT_CONFIG = {
   sharedPassword: 'Shamrocks2002#',
 
   // Whatever PIN you and your son want to type in to open the app.
-  appPin: '1234'
+  appPin: '2002'
 };
