@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#12161c">
+<meta name="description" content="Rookie Vault — catalog your sports card collection and track what it's worth, all offline.">
+<title>Rookie Vault</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===== HEADER ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="2" width="18" height="26" rx="3" transform="rotate(-8 14 15)" fill="none" stroke="var(--gold)" stroke-width="2"/>
+        <circle cx="16" cy="15" r="3" fill="var(--gold)"/>
+      </svg>
+      <span class="brand-name">Rookie Vault</span>
+    </div>
+    <button id="installBtn" class="install-btn hidden" type="button">Install</button>
+  </header>
+
+  <main class="panels">
+
+    <!-- ---------- COLLECTION ---------- -->
+    <section id="panel-collection" class="panel active" data-panel="collection">
+      <div id="collection-home" class="view active">
+        <div class="view-head">
+          <h1>The Collection</h1>
+          <p class="sub" id="collectionSummary">No cards yet.</p>
+        </div>
+
+        <div class="search-row">
+          <input id="cardSearch" type="search" placeholder="Search player, team, set…" autocomplete="off">
+          <select id="sportFilter">
+            <option value="">All sports</option>
+            <option value="football">Football</option>
+            <option value="baseball">Baseball</option>
+            <option value="basketball">Basketball</option>
+            <option value="hockey">Hockey</option>
+            <option value="soccer">Soccer</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="chip-row">
+          <button class="chip active" data-sort="newest" type="button">Newest</button>
+          <button class="chip" data-sort="value" type="button">Highest value</button>
+          <button class="chip" data-sort="player" type="button">Player A–Z</button>
+        </div>
+
+        <div id="cardGrid" class="card-grid"></div>
+        <p id="cardGridEmpty" class="empty-state hidden">No cards yet. Tap the + button to add your first one.</p>
+      </div>
+
+      <!-- capture -->
+      <div id="card-capture" class="view">
+        <div class="view-head">
+          <button class="back-btn" data-back="collection-home" type="button">&larr; Back</button>
+          <h1 id="captureTitle">Front of card</h1>
+        </div>
+        <div class="camera-wrap card-shape">
+          <video id="cardVideo" playsinline autoplay muted></video>
+          <div class="camera-guide card-guide"></div>
+        </div>
+        <p class="hint">Fill the frame with the card, then tap the shutter.</p>
+        <button id="cardShutter" class="shutter" type="button" aria-label="Capture"></button>
+        <button id="cardUploadBtn" class="text-btn" type="button">or choose a photo from your library</button>
+        <input id="cardFileInput" type="file" accept="image/*" class="hidden">
+      </div>
+
+      <!-- crop -->
+      <div id="card-edit" class="view">
+        <div class="view-head">
+          <button class="back-btn" data-back="card-capture" type="button">&larr; Retake</button>
+          <h1>Straighten it up</h1>
+        </div>
+        <div class="crop-wrap">
+          <canvas id="cardCropCanvas"></canvas>
+        </div>
+        <div class="chip-row">
+          <button class="chip" id="cardRotateBtn" type="button">Rotate 90°</button>
+        </div>
+        <p class="hint">Drag the corner handles to crop.</p>
+        <button id="cardUseCropBtn" class="primary-btn" type="button">Use this photo</button>
+      </div>
+
+      <!-- details / edit form -->
+      <div id="card-form" class="view">
+        <div class="view-head">
+          <button class="back-btn" data-back="collection-home" type="button">&larr; Back</button>
+          <h1 id="formTitle">Card details</h1>
+        </div>
+
+        <div class="card-photo-row">
+          <div class="photo-slot">
+            <img id="formFrontImg" alt="Front">
+            <button id="retakeFrontBtn" class="photo-edit-btn" type="button">Retake</button>
+          </div>
+          <div class="photo-slot">
+            <img id="formBackImg" alt="Back">
+            <button id="addBackBtn" class="photo-edit-btn" type="button">+ Add back</button>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Player</span>
+          <input id="fPlayer" type="text" placeholder="e.g. Mickey Mantle" autocomplete="off">
+        </label>
+        <div class="conv-row">
+          <label class="field">
+            <span>Team</span>
+            <input id="fTeam" type="text" placeholder="e.g. Yankees" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Sport</span>
+            <select id="fSport">
+              <option value="baseball">Baseball</option>
+              <option value="football">Football</option>
+              <option value="basketball">Basketball</option>
+              <option value="hockey">Hockey</option>
+              <option value="soccer">Soccer</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+        </div>
+        <div class="conv-row">
+          <label class="field">
+            <span>Year</span>
+            <input id="fYear" type="number" inputmode="numeric" placeholder="e.g. 1987">
+          </label>
+          <label class="field">
+            <span>Brand / set</span>
+            <input id="fBrand" type="text" placeholder="e.g. Topps" autocomplete="off">
+          </label>
+        </div>
+        <div class="conv-row">
+          <label class="field">
+            <span>Card #</span>
+            <input id="fCardNum" type="text" placeholder="e.g. 250" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Parallel / insert</span>
+            <input id="fParallel" type="text" placeholder="e.g. Refractor /99" autocomplete="off">
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle"><input id="fRookie" type="checkbox"><span>Rookie card</span></label>
+          <label class="toggle"><input id="fGraded" type="checkbox"><span>Professionally graded</span></label>
+        </div>
+
+        <div id="gradedFields" class="conv-row hidden">
+          <label class="field">
+            <span>Grading co.</span>
+            <select id="fGradingCo">
+              <option value="PSA">PSA</option>
+              <option value="BGS">BGS</option>
+              <option value="SGC">SGC</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Grade</span>
+            <input id="fGrade" type="text" placeholder="e.g. 9" autocomplete="off">
+          </label>
+        </div>
+        <label class="field" id="conditionField">
+          <span>Condition</span>
+          <select id="fCondition">
+            <option value="mint">Mint</option>
+            <option value="nm">Near Mint</option>
+            <option value="ex">Excellent</option>
+            <option value="vg">Very Good</option>
+            <option value="poor">Poor / played</option>
+          </select>
+        </label>
+
+        <h2 class="section-label">Value</h2>
+        <div class="conv-row">
+          <label class="field">
+            <span>Purchase price</span>
+            <input id="fPurchase" type="number" inputmode="decimal" placeholder="0.00">
+          </label>
+          <label class="field">
+            <span>Current estimated value</span>
+            <input id="fValue" type="number" inputmode="decimal" placeholder="0.00">
+          </label>
+        </div>
+        <button id="checkPriceBtn" class="chip" type="button">Check recent sold prices on eBay ↗</button>
+
+        <label class="field">
+          <span>Notes</span>
+          <textarea id="fNotes" rows="2" placeholder="Anything worth remembering…"></textarea>
+        </label>
+
+        <button id="saveCardBtn" class="primary-btn" type="button">Save card</button>
+        <button id="deleteCardBtn" class="chip danger hidden" type="button">Remove from collection</button>
+      </div>
+
+      <button id="cardFab" class="fab" type="button" aria-label="Add new card">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </section>
+
+    <!-- ---------- STATS ---------- -->
+    <section id="panel-stats" class="panel" data-panel="stats">
+      <div class="view-head">
+        <h1>Stats</h1>
+        <p class="sub">How the collection's doing.</p>
+      </div>
+
+      <div class="stat-grid" id="statGrid"></div>
+
+      <h2 class="section-label">Most valuable</h2>
+      <div id="topCardsList" class="card-list"></div>
+
+      <h2 class="section-label">By sport</h2>
+      <div id="sportBreakdown" class="card-list"></div>
+    </section>
+
+  </main>
+
+  <!-- ===== TAB BAR ===== -->
+  <nav class="tabbar" aria-label="Sections">
+    <button class="tab active" data-target="collection" type="button">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="11" height="16" rx="2" transform="rotate(-6 9.5 12)" stroke="currentColor" stroke-width="1.8"/><rect x="9" y="4" width="11" height="16" rx="2" transform="rotate(6 14.5 12)" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span>Collection</span>
+    </button>
+    <button class="tab" data-target="stats" type="button">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 19V10M12 19V5M19 19v-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Stats</span>
+    </button>
+  </nav>
+
+</div>
+
+<div id="cardDetailOverlay" class="detail-overlay hidden">
+  <div class="detail-sheet">
+    <button id="closeDetailBtn" class="back-btn" type="button">&larr; Back</button>
+    <img id="detailFrontImg" class="detail-img" alt="">
+    <div class="detail-head">
+      <h2 id="detailPlayer"></h2>
+      <p id="detailSub" class="sub"></p>
+    </div>
+    <div class="detail-value-row">
+      <div><span>Paid</span><b id="detailPaid"></b></div>
+      <div><span>Now worth</span><b id="detailValue"></b></div>
+      <div><span>Change</span><b id="detailChange"></b></div>
+    </div>
+    <canvas id="sparkline" class="sparkline hidden"></canvas>
+    <div id="detailMeta" class="view-meta"></div>
+    <div class="chip-row">
+      <button id="detailBackToggle" class="chip hidden" type="button">Show back</button>
+      <button id="detailCheckPrice" class="chip" type="button">Check sold prices ↗</button>
+      <button id="detailEdit" class="primary-btn-inline" type="button">Edit card</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
