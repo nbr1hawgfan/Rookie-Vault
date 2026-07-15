@@ -24,7 +24,12 @@
       </svg>
       <span class="brand-name">Rookie Vault</span>
     </div>
-    <button id="installBtn" class="install-btn hidden" type="button">Install</button>
+    <div class="header-actions">
+      <button id="settingsBtn" class="icon-btn" type="button" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V19a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H4a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H10a1.7 1.7 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V10a1.7 1.7 0 0 0 1.5 1H20a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <button id="installBtn" class="install-btn hidden" type="button">Install</button>
+    </div>
   </header>
 
   <main class="panels">
@@ -108,6 +113,12 @@
             <button id="addBackBtn" class="photo-edit-btn" type="button">+ Add back</button>
           </div>
         </div>
+
+        <button id="identifyBtn" class="ai-identify-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 3l1.8 4.8L18 9.5l-4.2 1.7L12 16l-1.8-4.8L6 9.5l4.2-1.7L12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          Identify with AI
+        </button>
+        <p id="identifyStatus" class="hint hidden"></p>
 
         <label class="field">
           <span>Player</span>
@@ -239,6 +250,27 @@
     </button>
   </nav>
 
+</div>
+
+<div id="settingsOverlay" class="detail-overlay hidden">
+  <div class="detail-sheet">
+    <button id="closeSettingsBtn" class="back-btn" type="button">&larr; Back</button>
+    <h2 style="font-family:var(--font-display); text-transform:uppercase; margin-bottom:4px;">AI Identification</h2>
+    <p class="sub">Point the camera at a card and let it fill in the details for you.</p>
+
+    <p class="settings-body">
+      Powered by <b>CardSight AI</b> — free for personal use, 750 lookups a month, no credit card. Covers baseball, football, basketball, and hockey (soccer still needs manual entry). When you tap "Identify with AI," the card's front photo is sent to CardSight's service to be matched — everything else in the app stays fully offline.
+    </p>
+    <a href="https://cardsight.ai" target="_blank" rel="noopener" class="settings-link">Get a free API key at cardsight.ai ↗</a>
+
+    <label class="field" style="margin-top:16px;">
+      <span>CardSight API key</span>
+      <input id="apiKeyInput" type="text" placeholder="Paste your key here" autocomplete="off">
+    </label>
+    <button id="saveApiKeyBtn" class="primary-btn" type="button">Save key</button>
+    <button id="clearApiKeyBtn" class="chip danger" type="button">Remove key</button>
+    <p id="apiKeyStatus" class="hint"></p>
+  </div>
 </div>
 
 <div id="cardDetailOverlay" class="detail-overlay hidden">

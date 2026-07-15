@@ -624,6 +624,151 @@ async function renderStats(){
 }
 
 /* =========================================================
+   SETTINGS — CardSight API key
+   ========================================================= */
+const API_KEY_STORAGE = 'rookieVault_cardsightApiKey';
+function getApiKey(){ return localStorage.getItem(API_KEY_STORAGE) || ''; }
+function setApiKey(key){ if(key) localStorage.setItem(API_KEY_STORAGE, key); else localStorage.removeItem(API_KEY_STORAGE); }
+
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  document.getElementById('apiKeyInput').value = getApiKey();
+  document.getElementById('apiKeyStatus').textContent = getApiKey() ? 'A key is currently saved.' : 'No key saved yet — AI identification is off.';
+  document.getElementById('settingsOverlay').classList.remove('hidden');
+});
+document.getElementById('closeSettingsBtn').addEventListener('click', ()=>{
+  document.getElementById('settingsOverlay').classList.add('hidden');
+});
+document.getElementById('saveApiKeyBtn').addEventListener('click', ()=>{
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if(!key){ showToast('Paste a key first.'); return; }
+  setApiKey(key);
+  showToast('API key saved');
+  document.getElementById('settingsOverlay').classList.add('hidden');
+});
+document.getElementById('clearApiKeyBtn').addEventListener('click', ()=>{
+  setApiKey('');
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('apiKeyStatus').textContent = 'No key saved yet — AI identification is off.';
+  showToast('Key removed');
+});
+
+/* =========================================================
+   AI IDENTIFICATION (CardSight AI)
+   ========================================================= */
+const SPORT_TO_SEGMENT = { baseball:'baseball', football:'football', basketball:'basketball', hockey:'hockey' };
+
+function setIdentifyStatus(msg){
+  const el = document.getElementById('identifyStatus');
+  if(!msg){ el.classList.add('hidden'); el.textContent = ''; return; }
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+document.getElementById('identifyBtn').addEventListener('click', async ()=>{
+  const apiKey = getApiKey();
+  if(!apiKey){
+    showToast('Add a free CardSight API key in Settings first.');
+    document.getElementById('settingsOverlay').classList.remove('hidden');
+    return;
+  }
+  if(!pendingFrontImage){ showToast('Add a front photo first.'); return; }
+  const sport = document.getElementById('fSport').value;
+  const segment = SPORT_TO_SEGMENT[sport];
+  if(!segment){
+    showToast("AI identification doesn't cover this sport yet — enter details manually.");
+    return;
+  }
+
+  const btn = document.getElementById('identifyBtn');
+  btn.disabled = true;
+  setIdentifyStatus('Identifying card…');
+
+  try{
+    const mod = await import('https://cdn.jsdelivr.net/npm/cardsightai/+esm');
+    const client = new mod.CardSightAI({ apiKey });
+    const blob = await fetch(pendingFrontImage).then(r=> r.blob());
+    const result = await client.identify.cardBySegment(segment, blob);
+
+    const detection = mod.getHighestConfidenceDetection ? mod.getHighestConfidenceDetection(result.data) : (result.data?.detections || [])[0];
+    if(!detection || !detection.card || (!detection.card.id && !detection.card.setId)){
+      setIdentifyStatus('');
+      showToast("Couldn't identify this card — enter the details manually.");
+      return;
+    }
+
+    const card = detection.card;
+    const exact = !!card.id;
+
+    if(card.name) document.getElementById('fPlayer').value = card.name;
+    if(card.year) document.getElementById('fYear').value = card.year;
+    if(card.manufacturer) document.getElementById('fBrand').value = card.manufacturer;
+    if(card.number) document.getElementById('fCardNum').value = card.number;
+    if(card.parallel){
+      const p = card.parallel;
+      document.getElementById('fParallel').value = p.numberedTo ? `${p.name} /${p.numberedTo}` : (p.name || '');
+    }
+
+    if(mod.hasGrading && mod.hasGrading(detection)){
+      const grading = mod.getGradingInfo(detection);
+      document.getElementById('fGraded').checked = true;
+      document.getElementById('gradedFields').classList.remove('hidden');
+      document.getElementById('conditionField').classList.add('hidden');
+      const knownCos = ['PSA','BGS','SGC'];
+      document.getElementById('fGradingCo').value = knownCos.includes(grading.company?.name) ? grading.company.name : 'other';
+      if(grading.grade?.value) document.getElementById('fGrade').value = grading.grade.value;
+    }
+
+    setIdentifyStatus(exact
+      ? `Identified — ${detection.confidence} confidence. Double-check before saving.`
+      : `Matched the set, but not the exact card — fill in what's missing.`);
+    showToast(exact ? 'Card identified' : 'Set identified — check the details');
+
+    // Pull a value estimate from recent sales, when we have an exact card match
+    if(exact && card.id){
+      setIdentifyStatus('Looking up recent sale prices…');
+      try{
+        const pricing = await client.pricing.get(card.id, { period:'1y', listing_type:'both' });
+        const estimate = estimateValueFromPricing(pricing.data, document.getElementById('fGraded').checked, document.getElementById('fGradingCo').value, document.getElementById('fGrade').value);
+        if(estimate != null){
+          document.getElementById('fValue').value = estimate.toFixed(2);
+          setIdentifyStatus(`Identified — ${detection.confidence} confidence. Value estimate from ${pricing.data.meta?.total_records || 'recent'} sales — double-check before saving.`);
+        } else {
+          setIdentifyStatus(`Identified — ${detection.confidence} confidence. No recent sales data found — enter your own estimate.`);
+        }
+      }catch(e){
+        // pricing lookup failing shouldn't block the identification result
+      }
+    }
+  }catch(err){
+    setIdentifyStatus('');
+    showToast('Could not reach the identification service — enter details manually.');
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+function estimateValueFromPricing(data, isGraded, gradingCo, gradeValue){
+  if(!data) return null;
+  if(isGraded && data.graded && data.graded.length){
+    const company = data.graded.find(c => (c.company_name||'').toUpperCase() === (gradingCo||'').toUpperCase());
+    if(company){
+      const grade = company.grades.find(g => String(g.grade_value) === String(gradeValue));
+      if(grade && grade.records && grade.records.length){
+        return average(grade.records.map(r=> Number(r.price)).filter(n=> !isNaN(n)));
+      }
+    }
+  }
+  if(data.raw && data.raw.records && data.raw.records.length){
+    return average(data.raw.records.map(r=> Number(r.price)).filter(n=> !isNaN(n)));
+  }
+  return null;
+}
+function average(nums){
+  if(!nums.length) return null;
+  return nums.reduce((a,b)=>a+b,0) / nums.length;
+}
+
+/* =========================================================
    PWA install + service worker
    ========================================================= */
 let deferredPrompt = null;
