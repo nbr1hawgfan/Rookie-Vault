@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rookie-vault-v8';
+const CACHE_NAME = 'rookie-vault-v9';
 const ASSETS = [
   './',
   './index.html',
