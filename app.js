@@ -292,7 +292,7 @@ function loadImageToEditor(src){
 }
 function processEditorBase(){
   const img = editor.rawImage;
-  const MAXDIM = 1200;
+  const MAXDIM = 1600;
   let sw = img.width, sh = img.height;
   const scaleDown = Math.min(1, MAXDIM / Math.max(sw, sh));
   sw = Math.round(sw*scaleDown); sh = Math.round(sh*scaleDown);
@@ -382,7 +382,7 @@ document.getElementById('cardUseCropBtn').addEventListener('click', ()=>{
   const out = document.createElement('canvas');
   out.width = Math.round(sw); out.height = Math.round(sh);
   out.getContext('2d').drawImage(editor.processedCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
-  const dataUrl = out.toDataURL('image/jpeg', 0.88);
+  const dataUrl = out.toDataURL('image/jpeg', 0.94);
   if(captureTarget === 'front') pendingFrontImage = dataUrl; else pendingBackImage = dataUrl;
   openCardForm();
 });
@@ -815,9 +815,14 @@ document.getElementById('identifyBtn').addEventListener('click', async ()=>{
     const result = await client.identify.cardBySegment(segment, blob);
 
     const detection = mod.getHighestConfidenceDetection ? mod.getHighestConfidenceDetection(result.data) : (result.data?.detections || [])[0];
+    if(!result.data?.detections?.length){
+      setIdentifyStatus('');
+      showToast('No card detected in that photo — retake with the card filling the frame.');
+      return;
+    }
     if(!detection || !detection.card || (!detection.card.id && !detection.card.setId)){
       setIdentifyStatus('');
-      showToast("Couldn't identify this card — enter the details manually.");
+      showToast("Couldn't match this one — try again with less glare/better light, or it may not be in the catalog yet.");
       return;
     }
 
