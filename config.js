@@ -16,7 +16,7 @@ window.ROOKIE_VAULT_CONFIG = {
 
   // The one shared login the app signs in with after a correct PIN.
   // Create this user in Supabase: Authentication → Users → Add user.
-  sharedEmail: 'shamrocksperson@gmail.com',
+  sharedEmail: 'nbr1hawgfan@gmail.com',
   sharedPassword: 'Brenton2002#',
 
   // Whatever PIN you and your son want to type in to open the app.
