@@ -3,7 +3,11 @@
 A zero-build static PWA for cataloging a shared sports card collection and tracking what it's worth. Backed by a free Supabase database, so you and your son see the same collection from any device.
 
 - **Collection** — snap the front (and optionally back) of a card, crop/straighten it, then log the details: player, team, sport, year, brand/set, card number, parallel/insert, rookie flag, and either a raw condition or a professional grade (PSA/BGS/SGC + number). Everything's stored in a shared Supabase database and Storage bucket — both of you see the same collection, same photos, same values, live.
-- **AI identification** — tap "Identify with AI" on a card you've just photographed, and it'll try to fill in player, year, set, card number, parallel, and even grading-slab info automatically, using [CardSight AI](https://cardsight.ai)'s visual card recognition (baseball, football, basketball, hockey — soccer isn't covered yet). When it gets an exact match, it also pulls a value estimate from recent completed sales. This is opt-in and needs a (free) API key — see setup below.
+- **AI identification** — two ways to fill in a card's details instead of typing everything by hand:
+  - **Search by name** (recommended, most reliable): start typing a player's name, pick from live suggestions, then pick the exact card from real catalog results. This searches [CardSight AI](https://cardsight.ai)'s structured database directly, so it isn't affected by lighting, glare, or photo quality the way image recognition is.
+  - **Photo AI identification**: point the camera at the card and let CardSight's visual recognition take a guess. Works well on a clean, well-lit photo, but is inherently less reliable than searching by name — keep it as a backup rather than the first thing to reach for.
+  
+  Either way, when it finds an exact match it also pulls a value estimate from recent completed sales. Covers baseball, football, basketball, and hockey — soccer isn't in the catalog yet. This needs a (free) API key — see setup below.
 - **Value tracking** — enter what you paid and what you think it's worth now (or let AI identification suggest a starting number). Every time the estimated value changes, it's logged, so the card's detail view shows a small trend line over time. There's also a one-tap button that opens a pre-filled **eBay sold-listings search** for a manual cross-check.
 - **Stats** — total cards, total collection value, total invested, overall gain/loss, a "most valuable" leaderboard, and a breakdown by sport.
 

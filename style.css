@@ -288,6 +288,28 @@ h2{margin:0;}
 .settings-body{color:var(--paper-dim); font-size:13.5px; line-height:1.6; margin:14px 0;}
 .settings-link{color:var(--gold); font-size:13px; font-weight:700; text-decoration:underline; text-underline-offset:3px;}
 
+/* ===== Catalog text search ===== */
+.catalog-search-block{margin-bottom:16px;}
+.catalog-suggestions{
+  background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius-sm);
+  margin-top:-10px; margin-bottom:10px; overflow:hidden;
+}
+.catalog-suggestions button{
+  display:block; width:100%; text-align:left; background:none; border:none;
+  color:var(--paper); padding:10px 12px; font-size:14px; border-bottom:1px solid var(--line);
+}
+.catalog-suggestions button:last-child{border-bottom:none;}
+.catalog-suggestions button:active{background:var(--panel);}
+.catalog-results{display:flex; flex-direction:column; gap:8px;}
+.catalog-result{
+  display:block; width:100%; text-align:left;
+  background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius-sm);
+  padding:10px 12px; color:var(--paper); font-size:13.5px;
+}
+.catalog-result:active{border-color:var(--gold);}
+.catalog-result b{display:block; font-size:14px; margin-bottom:2px;}
+.catalog-result span{color:var(--paper-dim); font-size:12px;}
+
 /* ===== PIN gate ===== */
 .pin-gate{
   position:fixed; inset:0; background:var(--ink);

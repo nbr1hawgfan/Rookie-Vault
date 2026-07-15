@@ -134,6 +134,16 @@
           </select>
         </label>
 
+        <div class="catalog-search-block">
+          <label class="field" style="margin-bottom:6px;">
+            <span>Search the catalog by name</span>
+            <input id="catalogSearchInput" type="text" placeholder="Start typing a player name…" autocomplete="off">
+          </label>
+          <div id="catalogSuggestions" class="catalog-suggestions hidden"></div>
+          <p id="catalogSearchStatus" class="hint hidden"></p>
+          <div id="catalogResults" class="catalog-results"></div>
+        </div>
+
         <div class="card-photo-row">
           <div class="photo-slot">
             <img id="formFrontImg" alt="Front">
@@ -147,7 +157,7 @@
 
         <button id="identifyBtn" class="ai-identify-btn" type="button">
           <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 3l1.8 4.8L18 9.5l-4.2 1.7L12 16l-1.8-4.8L6 9.5l4.2-1.7L12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-          Identify with AI
+          Or try photo AI identification
         </button>
         <p id="identifyStatus" class="hint hidden"></p>
 

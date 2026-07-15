@@ -402,6 +402,7 @@ function openCardForm(){
   document.getElementById('formFrontImg').src = pendingFrontImage || '';
   document.getElementById('formBackImg').src = pendingBackImage || '';
   document.getElementById('addBackBtn').textContent = pendingBackImage ? 'Retake back' : '+ Add back';
+  resetCatalogSearch();
   showView('#panel-collection', 'card-form');
 }
 document.getElementById('retakeFrontBtn').addEventListener('click', async ()=>{
@@ -788,6 +789,139 @@ document.getElementById('clearApiKeyBtn').addEventListener('click', ()=>{
    AI IDENTIFICATION (CardSight AI)
    ========================================================= */
 const SPORT_TO_SEGMENT = { baseball:'baseball', football:'football', basketball:'basketball', hockey:'hockey' };
+
+let cardSightModPromise = null;
+function loadCardSightModule(){
+  if(!cardSightModPromise) cardSightModPromise = import('https://cdn.jsdelivr.net/npm/cardsightai/+esm');
+  return cardSightModPromise;
+}
+function debounce(fn, ms){
+  let t;
+  return (...args)=>{ clearTimeout(t); t = setTimeout(()=> fn(...args), ms); };
+}
+
+/* =========================================================
+   CATALOG TEXT SEARCH (autocomplete + browse by name)
+   This is the reliable fallback (or primary path) to photo AI —
+   it searches CardSight's structured catalog directly instead of
+   trying to interpret a photo, so it isn't affected by lighting,
+   glare, or crop quality.
+   ========================================================= */
+const catalogSearchInput = document.getElementById('catalogSearchInput');
+const catalogSuggestionsEl = document.getElementById('catalogSuggestions');
+const catalogResultsEl = document.getElementById('catalogResults');
+const catalogStatusEl = document.getElementById('catalogSearchStatus');
+
+function resetCatalogSearch(){
+  catalogSearchInput.value = '';
+  catalogSuggestionsEl.innerHTML = '';
+  catalogSuggestionsEl.classList.add('hidden');
+  catalogResultsEl.innerHTML = '';
+  catalogStatusEl.classList.add('hidden');
+}
+
+const debouncedAutocomplete = debounce(async ()=>{
+  const query = catalogSearchInput.value.trim();
+  if(query.length < 2){ catalogSuggestionsEl.classList.add('hidden'); catalogSuggestionsEl.innerHTML = ''; return; }
+  const apiKey = getApiKey();
+  if(!apiKey) return;
+  try{
+    const mod = await loadCardSightModule();
+    const client = new mod.CardSightAI({ apiKey });
+    const result = await client.autocomplete.cards({ query, take: 6 });
+    const raw = Array.isArray(result?.data) ? result.data : (result?.data?.suggestions || result?.data?.results || []);
+    const names = raw.map(n => typeof n === 'string' ? n : (n?.name || n?.value || '')).filter(Boolean);
+    catalogSuggestionsEl.innerHTML = '';
+    if(!names.length){ catalogSuggestionsEl.classList.add('hidden'); return; }
+    names.forEach(name=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = name;
+      btn.addEventListener('click', ()=>{
+        catalogSearchInput.value = name;
+        catalogSuggestionsEl.classList.add('hidden');
+        runCatalogSearch(name);
+      });
+      catalogSuggestionsEl.appendChild(btn);
+    });
+    catalogSuggestionsEl.classList.remove('hidden');
+  }catch(e){
+    // autocomplete is a nicety — fail silently and let Enter/search still work
+  }
+}, 300);
+catalogSearchInput.addEventListener('input', debouncedAutocomplete);
+catalogSearchInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    catalogSuggestionsEl.classList.add('hidden');
+    runCatalogSearch(catalogSearchInput.value);
+  }
+});
+
+async function runCatalogSearch(query){
+  const apiKey = getApiKey();
+  if(!apiKey){
+    showToast('Add a free CardSight API key in Settings first.');
+    document.getElementById('settingsOverlay').classList.remove('hidden');
+    return;
+  }
+  const q = (query || '').trim();
+  if(!q) return;
+  catalogSuggestionsEl.classList.add('hidden');
+  catalogResultsEl.innerHTML = '';
+  catalogStatusEl.textContent = 'Searching the catalog…';
+  catalogStatusEl.classList.remove('hidden');
+  try{
+    const mod = await loadCardSightModule();
+    const client = new mod.CardSightAI({ apiKey });
+    const segment = SPORT_TO_SEGMENT[document.getElementById('fSport').value];
+    const params = { player: q, take: 15 };
+    if(segment) params.segment = segment;
+    const result = await client.catalog.cards.list(params);
+    const cards = Array.isArray(result?.data) ? result.data : (result?.data?.cards || result?.data?.results || []);
+    if(!cards.length){
+      catalogStatusEl.textContent = "No catalog matches — try a different spelling, or enter details manually below.";
+      return;
+    }
+    catalogStatusEl.classList.add('hidden');
+    cards.forEach(card=>{
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'catalog-result';
+      const title = mod.formatCardDisplay ? mod.formatCardDisplay(card) : [card.year, card.manufacturer, card.name].filter(Boolean).join(' ');
+      const subParts = [card.releaseName, card.setName, card.number ? '#'+card.number : ''].filter(Boolean);
+      row.innerHTML = `<b>${escapeHtml(title)}</b><span>${escapeHtml(subParts.join(' · '))}</span>`;
+      row.addEventListener('click', ()=> selectCatalogCard(card));
+      catalogResultsEl.appendChild(row);
+    });
+  }catch(err){
+    catalogStatusEl.textContent = 'Search failed — check your connection and try again.';
+  }
+}
+
+async function selectCatalogCard(card){
+  if(card.name) document.getElementById('fPlayer').value = card.name;
+  if(card.year) document.getElementById('fYear').value = card.year;
+  if(card.manufacturer) document.getElementById('fBrand').value = card.manufacturer;
+  if(card.number) document.getElementById('fCardNum').value = card.number;
+  catalogResultsEl.innerHTML = '';
+  catalogStatusEl.classList.add('hidden');
+  showToast('Card details filled in — double-check before saving.');
+
+  if(card.id){
+    try{
+      const apiKey = getApiKey();
+      const mod = await loadCardSightModule();
+      const client = new mod.CardSightAI({ apiKey });
+      const pricing = await client.pricing.get(card.id, { period:'1y', listing_type:'both' });
+      const estimate = estimateValueFromPricing(pricing.data, document.getElementById('fGraded').checked, document.getElementById('fGradingCo').value, document.getElementById('fGrade').value);
+      if(estimate != null){
+        document.getElementById('fValue').value = estimate.toFixed(2);
+        showToast('Value estimate filled in from recent sales too.');
+      }
+    }catch(e){ /* pricing is a bonus, not critical */ }
+  }
+}
 const ALL_SEGMENTS = ['baseball', 'football', 'basketball', 'hockey'];
 const SEGMENT_LABEL = { baseball:'baseball', football:'football', basketball:'basketball', hockey:'hockey' };
 
@@ -826,7 +960,7 @@ document.getElementById('identifyBtn').addEventListener('click', async ()=>{
 
   try{
     setIdentifyStatus('Loading identification service…');
-    const mod = await import('https://cdn.jsdelivr.net/npm/cardsightai/+esm');
+    const mod = await loadCardSightModule();
     const client = new mod.CardSightAI({ apiKey });
     const blob = await fetch(pendingFrontImage).then(r=> r.blob());
 
