@@ -875,23 +875,23 @@ async function runCatalogSearch(query){
     const mod = await loadCardSightModule();
     const client = new mod.CardSightAI({ apiKey });
     const segment = SPORT_TO_SEGMENT[document.getElementById('fSport').value];
-    const params = { player: q, take: 15 };
+    const params = { q, type: 'card', take: 20 };
     if(segment) params.segment = segment;
-    const result = await client.catalog.cards.list(params);
-    const cards = Array.isArray(result?.data) ? result.data : (result?.data?.cards || result?.data?.results || []);
-    if(!cards.length){
+    const result = await client.catalog.search(params);
+    const results = result?.data?.results || (Array.isArray(result?.data) ? result.data : []);
+    if(!results.length){
       catalogStatusEl.textContent = "No catalog matches — try a different spelling, or enter details manually below.";
       return;
     }
     catalogStatusEl.classList.add('hidden');
-    cards.forEach(card=>{
+    results.forEach(item=>{
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'catalog-result';
-      const title = mod.formatCardDisplay ? mod.formatCardDisplay(card) : [card.year, card.manufacturer, card.name].filter(Boolean).join(' ');
-      const subParts = [card.releaseName, card.setName, card.number ? '#'+card.number : ''].filter(Boolean);
+      const title = mod.formatCardDisplay ? mod.formatCardDisplay(item) : [item.year, item.manufacturer, item.name].filter(Boolean).join(' ');
+      const subParts = [item.releaseName, item.setName, item.number ? '#'+item.number : ''].filter(Boolean);
       row.innerHTML = `<b>${escapeHtml(title)}</b><span>${escapeHtml(subParts.join(' · '))}</span>`;
-      row.addEventListener('click', ()=> selectCatalogCard(card));
+      row.addEventListener('click', ()=> selectCatalogCard(item));
       catalogResultsEl.appendChild(row);
     });
   }catch(err){
@@ -899,7 +899,21 @@ async function runCatalogSearch(query){
   }
 }
 
-async function selectCatalogCard(card){
+async function selectCatalogCard(item){
+  const apiKey = getApiKey();
+  let card = item;
+
+  // Search results can be a lighter-weight shape than the full catalog record —
+  // fetch the full card by ID (a well-documented, reliable shape) before filling the form.
+  if(item.id){
+    try{
+      const mod = await loadCardSightModule();
+      const client = new mod.CardSightAI({ apiKey });
+      const full = await client.catalog.cards.get(item.id);
+      if(full?.data) card = full.data;
+    }catch(e){ /* fall back to the search result item itself */ }
+  }
+
   if(card.name) document.getElementById('fPlayer').value = card.name;
   if(card.year) document.getElementById('fYear').value = card.year;
   if(card.manufacturer) document.getElementById('fBrand').value = card.manufacturer;
@@ -910,7 +924,6 @@ async function selectCatalogCard(card){
 
   if(card.id){
     try{
-      const apiKey = getApiKey();
       const mod = await loadCardSightModule();
       const client = new mod.CardSightAI({ apiKey });
       const pricing = await client.pricing.get(card.id, { period:'1y', listing_type:'both' });
