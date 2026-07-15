@@ -788,12 +788,21 @@ document.getElementById('clearApiKeyBtn').addEventListener('click', ()=>{
    AI IDENTIFICATION (CardSight AI)
    ========================================================= */
 const SPORT_TO_SEGMENT = { baseball:'baseball', football:'football', basketball:'basketball', hockey:'hockey' };
+const ALL_SEGMENTS = ['baseball', 'football', 'basketball', 'hockey'];
+const SEGMENT_LABEL = { baseball:'baseball', football:'football', basketball:'basketball', hockey:'hockey' };
 
 function setIdentifyStatus(msg){
   const el = document.getElementById('identifyStatus');
   if(!msg){ el.classList.add('hidden'); el.textContent = ''; return; }
   el.textContent = msg;
   el.classList.remove('hidden');
+}
+
+function isUsableDetection(mod, result){
+  if(!result?.data?.detections?.length) return null;
+  const detection = mod.getHighestConfidenceDetection ? mod.getHighestConfidenceDetection(result.data) : result.data.detections[0];
+  if(!detection || !detection.card || (!detection.card.id && !detection.card.setId)) return null;
+  return detection;
 }
 
 document.getElementById('identifyBtn').addEventListener('click', async ()=>{
@@ -804,33 +813,46 @@ document.getElementById('identifyBtn').addEventListener('click', async ()=>{
     return;
   }
   if(!pendingFrontImage){ showToast('Add a front photo first.'); return; }
-  const sport = document.getElementById('fSport').value;
-  const segment = SPORT_TO_SEGMENT[sport];
-  if(!segment){
-    showToast("AI identification doesn't cover this sport yet — enter details manually.");
-    return;
-  }
+
+  // Try the sport currently selected first, then fall back through the
+  // rest of what CardSight covers — this way a wrong or default Sport
+  // selection can't silently cause a false "no match".
+  const chosenSport = document.getElementById('fSport').value;
+  const chosenSegment = SPORT_TO_SEGMENT[chosenSport];
+  const tryOrder = [chosenSegment, ...ALL_SEGMENTS.filter(s => s !== chosenSegment)].filter(Boolean);
 
   const btn = document.getElementById('identifyBtn');
   btn.disabled = true;
-  setIdentifyStatus('Identifying card…');
 
   try{
+    setIdentifyStatus('Loading identification service…');
     const mod = await import('https://cdn.jsdelivr.net/npm/cardsightai/+esm');
     const client = new mod.CardSightAI({ apiKey });
     const blob = await fetch(pendingFrontImage).then(r=> r.blob());
-    const result = await client.identify.cardBySegment(segment, blob);
 
-    const detection = mod.getHighestConfidenceDetection ? mod.getHighestConfidenceDetection(result.data) : (result.data?.detections || [])[0];
-    if(!result.data?.detections?.length){
+    let detection = null;
+    let matchedSegment = null;
+    let anyCardDetected = false;
+
+    for(const segment of tryOrder){
+      setIdentifyStatus(`Checking ${SEGMENT_LABEL[segment]}…`);
+      const result = await client.identify.cardBySegment(segment, blob);
+      if(result?.data?.detections?.length) anyCardDetected = true;
+      const found = isUsableDetection(mod, result);
+      if(found){ detection = found; matchedSegment = segment; break; }
+    }
+
+    if(!detection){
       setIdentifyStatus('');
-      showToast('No card detected in that photo — retake with the card filling the frame.');
+      showToast(anyCardDetected
+        ? "Couldn't match this one against any covered sport — try better light/less glare, or it may not be in the catalog yet."
+        : 'No card detected in that photo — retake with the card filling the frame.');
       return;
     }
-    if(!detection || !detection.card || (!detection.card.id && !detection.card.setId)){
-      setIdentifyStatus('');
-      showToast("Couldn't match this one — try again with less glare/better light, or it may not be in the catalog yet.");
-      return;
+
+    // Keep the Sport field in sync with whichever segment actually matched
+    if(matchedSegment && matchedSegment !== chosenSegment){
+      document.getElementById('fSport').value = matchedSegment;
     }
 
     const card = detection.card;
