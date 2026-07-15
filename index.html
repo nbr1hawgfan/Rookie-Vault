@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#12161c">
-<meta name="description" content="Rookie Vault — catalog your sports card collection and track what it's worth, all offline.">
+<meta name="description" content="Rookie Vault — catalog your shared sports card collection and track what it's worth.">
 <title>Rookie Vault</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -13,7 +13,21 @@
 </head>
 <body>
 
-<div class="app">
+<div id="pinGate" class="pin-gate">
+  <div class="pin-card">
+    <svg class="brand-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="34" height="34">
+      <rect x="5" y="2" width="18" height="26" rx="3" transform="rotate(-8 14 15)" fill="none" stroke="var(--gold)" stroke-width="2"/>
+      <circle cx="16" cy="15" r="3" fill="var(--gold)"/>
+    </svg>
+    <h1 style="margin:10px 0 2px;">Rookie Vault</h1>
+    <p class="sub">Enter the PIN to open the collection.</p>
+    <input id="pinInput" class="pin-input" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" maxlength="12">
+    <button id="pinSubmit" class="primary-btn" type="button">Unlock</button>
+    <p id="pinError" class="hint hidden" style="color:var(--red);"></p>
+  </div>
+</div>
+
+<div class="app hidden" id="appRoot">
 
   <!-- ===== HEADER ===== -->
   <header class="topbar">
@@ -298,6 +312,7 @@
 
 <div id="toast" class="toast"></div>
 
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

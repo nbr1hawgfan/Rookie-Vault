@@ -20,63 +20,168 @@ function money(n){
 }
 
 /* =========================================================
-   IndexedDB
+   SUPABASE CLIENT
    ========================================================= */
-const DB_NAME = 'rookieVaultDB';
-const DB_VERSION = 1;
-let dbPromise = null;
-function openDB(){
-  if(dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject)=>{
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e)=>{
-      const db = e.target.result;
-      if(!db.objectStoreNames.contains('cards')){
-        const store = db.createObjectStore('cards', { keyPath: 'id' });
-        store.createIndex('sport', 'sport');
-        store.createIndex('createdAt', 'createdAt');
-      }
-    };
-    req.onsuccess = ()=> resolve(req.result);
-    req.onerror = ()=> reject(req.error);
-  });
-  return dbPromise;
+let supabaseClient = null;
+let supabaseReady = null;
+function getSupabase(){
+  if(!supabaseReady){
+    supabaseReady = (async ()=>{
+      const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      const cfg = window.ROOKIE_VAULT_CONFIG || {};
+      supabaseClient = mod.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+      return supabaseClient;
+    })();
+  }
+  return supabaseReady;
 }
+function newId(){
+  return (crypto.randomUUID ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,10));
+}
+
+/* =========================================================
+   PIN GATE
+   ========================================================= */
+const UNLOCK_FLAG = 'rookieVault_unlocked';
+
+async function tryAutoUnlock(){
+  if(localStorage.getItem(UNLOCK_FLAG) !== '1') return false;
+  try{
+    const sb = await getSupabase();
+    const { data } = await sb.auth.getSession();
+    if(data && data.session){ showApp(); return true; }
+  }catch(e){}
+  return false;
+}
+function showApp(){
+  document.getElementById('pinGate').classList.add('hidden');
+  document.getElementById('appRoot').classList.remove('hidden');
+  renderCollection();
+}
+async function unlockApp(){
+  const cfg = window.ROOKIE_VAULT_CONFIG || {};
+  const pin = document.getElementById('pinInput').value.trim();
+  const errEl = document.getElementById('pinError');
+  errEl.classList.add('hidden');
+  if(!pin || pin !== cfg.appPin){
+    errEl.textContent = 'Wrong PIN — try again.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  const btn = document.getElementById('pinSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Unlocking…';
+  try{
+    const sb = await getSupabase();
+    const { error } = await sb.auth.signInWithPassword({ email: cfg.sharedEmail, password: cfg.sharedPassword });
+    if(error) throw error;
+    localStorage.setItem(UNLOCK_FLAG, '1');
+    showApp();
+  }catch(err){
+    errEl.textContent = 'Could not connect — check your internet connection.';
+    errEl.classList.remove('hidden');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Unlock';
+  }
+}
+document.getElementById('pinSubmit').addEventListener('click', unlockApp);
+document.getElementById('pinInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') unlockApp(); });
+
+/* =========================================================
+   CARD DATA (Supabase Postgres + Storage)
+   ========================================================= */
+function rowToCard(row){
+  return {
+    id: row.id,
+    player: row.player || '',
+    team: row.team || '',
+    sport: row.sport || 'baseball',
+    year: row.year || '',
+    brand: row.brand || '',
+    cardNumber: row.card_number || '',
+    parallel: row.parallel || '',
+    rookie: !!row.rookie,
+    graded: !!row.graded,
+    gradingCo: row.grading_co || 'PSA',
+    grade: row.grade || '',
+    condition: row.condition || 'nm',
+    purchasePrice: Number(row.purchase_price) || 0,
+    currentValue: Number(row.current_value) || 0,
+    valueHistory: row.value_history || [],
+    frontImage: row.front_image_path || '',
+    backImage: row.back_image_path || '',
+    notes: row.notes || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function cardToRow(c){
+  return {
+    id: c.id,
+    player: c.player,
+    team: c.team,
+    sport: c.sport,
+    year: c.year,
+    brand: c.brand,
+    card_number: c.cardNumber,
+    parallel: c.parallel,
+    rookie: c.rookie,
+    graded: c.graded,
+    grading_co: c.gradingCo,
+    grade: c.grade,
+    condition: c.condition,
+    purchase_price: c.purchasePrice,
+    current_value: c.currentValue,
+    value_history: c.valueHistory,
+    front_image_path: c.frontImage,
+    back_image_path: c.backImage,
+    notes: c.notes
+  };
+}
+function urlToStoragePath(url){
+  const marker = '/storage/v1/object/public/card-photos/';
+  const idx = (url || '').indexOf(marker);
+  return idx === -1 ? null : url.slice(idx + marker.length);
+}
+async function uploadCardImage(cardId, slot, dataUrl){
+  const sb = await getSupabase();
+  const blob = await fetch(dataUrl).then(r=> r.blob());
+  const path = `${cardId}/${slot}-${Date.now()}.jpg`;
+  const { error } = await sb.storage.from('card-photos').upload(path, blob, { contentType:'image/jpeg', upsert:true });
+  if(error) throw error;
+  const { data } = sb.storage.from('card-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 async function cardsAll(){
-  const db = await openDB();
-  return new Promise((resolve, reject)=>{
-    const tx = db.transaction('cards', 'readonly');
-    const req = tx.objectStore('cards').getAll();
-    req.onsuccess = ()=> resolve(req.result || []);
-    req.onerror = ()=> reject(req.error);
-  });
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('cards').select('*').order('created_at', { ascending:false });
+  if(error){ showToast('Could not load the collection — check your connection.'); return []; }
+  return (data || []).map(rowToCard);
 }
 async function cardGet(id){
-  const db = await openDB();
-  return new Promise((resolve, reject)=>{
-    const tx = db.transaction('cards', 'readonly');
-    const req = tx.objectStore('cards').get(id);
-    req.onsuccess = ()=> resolve(req.result);
-    req.onerror = ()=> reject(req.error);
-  });
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('cards').select('*').eq('id', id).single();
+  if(error) return null;
+  return rowToCard(data);
 }
 async function cardPut(item){
-  const db = await openDB();
-  return new Promise((resolve, reject)=>{
-    const tx = db.transaction('cards', 'readwrite');
-    tx.objectStore('cards').put(item);
-    tx.oncomplete = ()=> resolve(item);
-    tx.onerror = ()=> reject(tx.error);
-  });
+  const sb = await getSupabase();
+  const row = cardToRow(item);
+  const { data, error } = await sb.from('cards').upsert(row).select().single();
+  if(error) throw error;
+  return rowToCard(data);
 }
 async function cardDelete(id){
-  const db = await openDB();
-  return new Promise((resolve, reject)=>{
-    const tx = db.transaction('cards', 'readwrite');
-    tx.objectStore('cards').delete(id);
-    tx.oncomplete = ()=> resolve();
-    tx.onerror = ()=> reject(tx.error);
-  });
+  const sb = await getSupabase();
+  const card = await cardGet(id);
+  if(card){
+    const paths = [card.frontImage, card.backImage].map(urlToStoragePath).filter(Boolean);
+    if(paths.length){ try{ await sb.storage.from('card-photos').remove(paths); }catch(e){} }
+  }
+  const { error } = await sb.from('cards').delete().eq('id', id);
+  if(error) throw error;
 }
 
 /* =========================================================
@@ -359,60 +464,80 @@ document.getElementById('saveCardBtn').addEventListener('click', async ()=>{
   if(!player){ showToast('Add a player name first.'); return; }
   if(!pendingFrontImage){ showToast('Add a front photo first.'); return; }
 
-  const newValue = parseFloat(document.getElementById('fValue').value) || 0;
-  let history = [];
-  let createdAt = new Date().toISOString();
-  if(editingCardId){
-    const existing = await cardGet(editingCardId);
-    if(existing){
-      history = existing.valueHistory || [];
-      createdAt = existing.createdAt || createdAt;
-      if(existing.currentValue !== newValue){
-        history = history.concat([{ date: new Date().toISOString(), value: newValue }]).slice(-24);
-      }
-    }
-  } else {
-    history = [{ date: createdAt, value: newValue }];
-  }
+  const saveBtn = document.getElementById('saveCardBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
 
-  const item = {
-    id: editingCardId || ('c_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
-    player,
-    team: document.getElementById('fTeam').value.trim(),
-    sport: document.getElementById('fSport').value,
-    year: document.getElementById('fYear').value.trim(),
-    brand: document.getElementById('fBrand').value.trim(),
-    cardNumber: document.getElementById('fCardNum').value.trim(),
-    parallel: document.getElementById('fParallel').value.trim(),
-    rookie: document.getElementById('fRookie').checked,
-    graded: document.getElementById('fGraded').checked,
-    gradingCo: document.getElementById('fGradingCo').value,
-    grade: document.getElementById('fGrade').value.trim(),
-    condition: document.getElementById('fCondition').value,
-    purchasePrice: parseFloat(document.getElementById('fPurchase').value) || 0,
-    currentValue: newValue,
-    valueHistory: history,
-    frontImage: pendingFrontImage,
-    backImage: pendingBackImage,
-    notes: document.getElementById('fNotes').value.trim(),
-    createdAt,
-    updatedAt: new Date().toISOString()
-  };
-  await cardPut(item);
-  showToast(editingCardId ? 'Card updated' : 'Card added');
-  editingCardId = null;
-  showView('#panel-collection', 'collection-home');
-  renderCollection();
+  try{
+    const newValue = parseFloat(document.getElementById('fValue').value) || 0;
+    let history = [];
+    let createdAt = new Date().toISOString();
+    if(editingCardId){
+      const existing = await cardGet(editingCardId);
+      if(existing){
+        history = existing.valueHistory || [];
+        createdAt = existing.createdAt || createdAt;
+        if(existing.currentValue !== newValue){
+          history = history.concat([{ date: new Date().toISOString(), value: newValue }]).slice(-24);
+        }
+      }
+    } else {
+      history = [{ date: createdAt, value: newValue }];
+    }
+
+    const cardId = editingCardId || newId();
+    let frontUrl = pendingFrontImage;
+    let backUrl = pendingBackImage;
+    if(frontUrl && frontUrl.startsWith('data:')) frontUrl = await uploadCardImage(cardId, 'front', frontUrl);
+    if(backUrl && backUrl.startsWith('data:')) backUrl = await uploadCardImage(cardId, 'back', backUrl);
+
+    const item = {
+      id: cardId,
+      player,
+      team: document.getElementById('fTeam').value.trim(),
+      sport: document.getElementById('fSport').value,
+      year: document.getElementById('fYear').value.trim(),
+      brand: document.getElementById('fBrand').value.trim(),
+      cardNumber: document.getElementById('fCardNum').value.trim(),
+      parallel: document.getElementById('fParallel').value.trim(),
+      rookie: document.getElementById('fRookie').checked,
+      graded: document.getElementById('fGraded').checked,
+      gradingCo: document.getElementById('fGradingCo').value,
+      grade: document.getElementById('fGrade').value.trim(),
+      condition: document.getElementById('fCondition').value,
+      purchasePrice: parseFloat(document.getElementById('fPurchase').value) || 0,
+      currentValue: newValue,
+      valueHistory: history,
+      frontImage: frontUrl,
+      backImage: backUrl,
+      notes: document.getElementById('fNotes').value.trim(),
+      createdAt
+    };
+    await cardPut(item);
+    showToast(editingCardId ? 'Card updated' : 'Card added');
+    editingCardId = null;
+    showView('#panel-collection', 'collection-home');
+    renderCollection();
+  }catch(err){
+    showToast('Could not save — check your connection and try again.');
+  }finally{
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save card';
+  }
 });
 
 document.getElementById('deleteCardBtn').addEventListener('click', async ()=>{
   if(!editingCardId) return;
   if(!confirm('Remove this card from the collection?')) return;
-  await cardDelete(editingCardId);
-  showToast('Removed');
-  editingCardId = null;
-  showView('#panel-collection', 'collection-home');
-  renderCollection();
+  try{
+    await cardDelete(editingCardId);
+    showToast('Removed');
+    editingCardId = null;
+    showView('#panel-collection', 'collection-home');
+    renderCollection();
+  }catch(err){
+    showToast('Could not delete — check your connection and try again.');
+  }
 });
 
 /* =========================================================
@@ -792,4 +917,4 @@ if('serviceWorker' in navigator){
 /* =========================================================
    Init
    ========================================================= */
-renderCollection();
+tryAutoUnlock();

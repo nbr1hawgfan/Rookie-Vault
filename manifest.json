@@ -1,7 +1,7 @@
 {
   "name": "Rookie Vault",
   "short_name": "RookieVault",
-  "description": "Catalog your sports card collection and track what it's worth, all offline.",
+  "description": "Catalog your shared sports card collection and track what it's worth.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -272,3 +272,16 @@ h2{margin:0;}
 .ai-identify-btn:disabled{opacity:.55;}
 .settings-body{color:var(--paper-dim); font-size:13.5px; line-height:1.6; margin:14px 0;}
 .settings-link{color:var(--gold); font-size:13px; font-weight:700; text-decoration:underline; text-underline-offset:3px;}
+
+/* ===== PIN gate ===== */
+.pin-gate{
+  position:fixed; inset:0; background:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  padding:24px; z-index:100;
+}
+.pin-gate.hidden{display:none;}
+.pin-card{width:100%; max-width:320px; text-align:center;}
+.pin-input{
+  text-align:center; letter-spacing:.4em; font-size:22px; font-family:var(--font-mono);
+  margin:18px 0 12px; padding:14px;
+}

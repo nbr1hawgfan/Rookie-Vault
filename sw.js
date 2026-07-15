@@ -1,9 +1,10 @@
-const CACHE_NAME = 'rookie-vault-v2';
+const CACHE_NAME = 'rookie-vault-v3';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './config.js',
   './manifest.json',
   './icons/icon.svg',
   './icons/icon-192.png',
