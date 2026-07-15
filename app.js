@@ -72,13 +72,20 @@ async function unlockApp(){
   btn.disabled = true;
   btn.textContent = 'Unlocking…';
   try{
-    const sb = await getSupabase();
+    let sb;
+    try{
+      sb = await getSupabase();
+    }catch(loadErr){
+      errEl.textContent = "Couldn't load the login system — check your internet connection and try again.";
+      errEl.classList.remove('hidden');
+      return;
+    }
     const { error } = await sb.auth.signInWithPassword({ email: cfg.sharedEmail, password: cfg.sharedPassword });
     if(error) throw error;
     localStorage.setItem(UNLOCK_FLAG, '1');
     showApp();
   }catch(err){
-    errEl.textContent = 'Could not connect — check your internet connection.';
+    errEl.textContent = 'Supabase said: ' + (err?.message || 'unknown error') + ' — check config.js and your Supabase Auth user.';
     errEl.classList.remove('hidden');
   }finally{
     btn.disabled = false;
